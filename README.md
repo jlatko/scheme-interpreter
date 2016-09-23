@@ -2,7 +2,6 @@ Simplified scheme interpreter created in order to learn haskell.
 Project based on the book 'Write Yourself a Scheme in 48 Hours' by Jonathan Tang.
 Link: https://en.wikibooks.org/wiki/Write_Yourself_a_Scheme_in_48_Hours
 
-
 To compile use the following command in src directory. You need ghc installed.
 ghc -o ../output/parser -outputdir ../output main.hs
 
