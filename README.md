@@ -24,7 +24,7 @@ To compile use the following command in src directory. You need ghc installed.
 ghc -o ../output/parser -outputdir ../output main.hs  
 
 Run program (from output directory):
-As interactive interptreter (no command line arguments): 
+As interactive interptreter (no command line arguments, type 'quit' to exit): 
 ...\output>cmd /c parser.exe
 or just double click the executive file
 
