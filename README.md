@@ -11,4 +11,6 @@ At the moment the program is able to evaluate single line of code given as a com
 Example (from output directory):  
 
 ...\output>cmd /c parser.exe "`(1 2 ,(if (< 1 3) (+ 2 4) \"1 is greater than three\"))"  
-(1 2 6)  
+(1 2 6) 
+
+License: GNU GPL

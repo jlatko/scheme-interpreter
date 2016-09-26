@@ -49,7 +49,10 @@ eval (List [Atom "if", pred, conseq, alt]) =
         case result of
              Bool False -> eval alt
              other  -> eval conseq
-eval (List (Atom "cond" : cases)) = evalCond cases
+eval (List (Atom "cond" : cases)) = evalConditional evalTestCond cases
+eval (List (Atom "case" : key : cases)) = do
+                    caseOf <- eval key
+                    evalConditional (evalTestCase caseOf) cases
 eval (List [Atom "quote", val]) = return val
 eval (List [Atom "quasiquote", expr]) = evalQuasi expr
 eval (List (Atom func : args)) = mapM eval args >>= apply func
@@ -63,26 +66,45 @@ evalQuasi (List [Atom "unquote", expr]) = eval expr
 evalQuasi (List expr) = mapM evalQuasi expr >>= (return . List)
 evalQuasi val = return val
 
-evalCond :: [LispVal] -> ThrowsError LispVal
-evalCond [] = return $ Bool False
-evalCond (x:xs) = do
-            result <- evalTest x
+
+evalConditional :: (LispVal -> ThrowsError (Bool, LispVal)) -> [LispVal] -> ThrowsError LispVal
+evalConditional test [] = return $ Atom "unspecified"
+evalConditional test (x:xs) = do
+            result <- test x
             case result of 
                 (True, expr) -> eval expr
-                otherwise    -> evalCond xs 
+                otherwise    -> evalConditional test xs 
 
----------- TODO support => -----
-evalTest :: LispVal -> ThrowsError (Bool, LispVal)
-evalTest (List (test:[])) = do 
+
+evalTestCond :: LispVal -> ThrowsError (Bool, LispVal)
+evalTestCond (List (test:[])) = do 
             result <- eval test
             isFalse <- (eqv $ result:(Bool False):[]) >>= unpackBool
             return (not isFalse, List [Atom "quote", result])
-evalTest (List (Atom "else" : expr)) = return (True, last expr)
-evalTest (List (test : expr)) = do 
+evalTestCond (List (Atom "else" : expr)) = return (True, last expr)
+evalTestCond (List (test : Atom "=>" : expr)) = do 
+            result <- eval test
+            isFalse <- (eqv $ result:(Bool False):[]) >>= unpackBool
+            expression <- insertToExpr (last expr) result
+            return (not isFalse, expression)
+evalTestCond (List (test : expr)) = do 
             result <- eval test
             isFalse <- (eqv $ result:(Bool False):[]) >>= unpackBool
             return (not isFalse, last expr )
-evalTest otherwise = throwError $ BadSpecialForm "Unrecognized special form" otherwise
+evalTestCond otherwise = throwError $ BadSpecialForm "Unrecognized special form" otherwise
+
+evalTestCase :: LispVal -> LispVal -> ThrowsError (Bool, LispVal)
+evalTestCase key (List ( List clauses : expr)) = do
+            let isTrue = map (eqvPair key) clauses
+            return (or isTrue, last expr)
+                where eqvPair x1 x2 = case eqv [x1, x2] of
+                                Right (Bool val) -> val
+evalTestCase _ (List ( Atom "else" : expr)) = return (True, last expr)
+evalTestCase _ otherwise = throwError $ BadSpecialForm "Unrecognized form in case statement" otherwise
+
+insertToExpr :: LispVal -> LispVal -> ThrowsError LispVal
+insertToExpr (List list) arg = return $ List $ list ++ [arg]
+insertToExpr otherwise _ = throwError $ BadSpecialForm "Unrecognized form in cond statement" otherwise
 
 apply :: String -> [LispVal] -> ThrowsError LispVal
 apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function args" func)
